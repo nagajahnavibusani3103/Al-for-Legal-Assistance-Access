@@ -1,0 +1,36 @@
+--- Page 1 ---
+EXECUTIVE EMPLOYMENT AGREEMENT
+
+This Employment Agreement ("Agreement") is made and entered into as of January 15, 2025 ("Effective Date"), by and between Apex Dynamics Inc., a Delaware corporation (the "Company"), and Jane Doe, an individual residing in Austin, Texas (the "Employee").
+
+SECTION 1. POSITION AND DUTIES
+1.1 Title and Duties. The Company agrees to employ Employee in the position of Senior Director of Engineering. Employee shall report to the Chief Technology Officer and shall devote full business time, attention, and effort to the business and affairs of the Company.
+1.2 Standard of Conduct. Employee shall perform all duties conscientiously, faithfully, and in full compliance with Company policies, applicable state and federal laws, and professional standards.
+
+SECTION 2. COMPENSATION AND BENEFITS
+2.1 Base Salary. The Company shall pay Employee a base salary of $120,000 per annum, payable in semi-monthly installments in accordance with the Company's standard payroll practices.
+2.2 Annual Bonus. Employee shall be eligible to receive an annual performance bonus with a target amount of twenty percent (20%) of Base Salary, based upon achievement of performance objectives mutually established by the Board of Directors.
+2.3 Benefits. Employee shall be entitled to participate in all health, dental, vision, and retirement benefit plans generally offered to full-time executive personnel of the Company.
+
+--- Page 2 ---
+SECTION 3. TERM AND TERMINATION
+3.1 At-Will Employment. Employment under this Agreement is at-will. Either party may terminate this employment relationship at any time, with or without cause, upon providing thirty (30) days advance written notice to the other party.
+3.2 Termination for Cause. The Company may immediately terminate Employee's employment for Cause without prior notice upon: (a) material breach of this Agreement; (b) conviction of a felony involving moral turpitude; or (c) gross negligence in the performance of duties.
+3.3 Effect of Termination. Upon termination of employment for any reason, Employee shall promptly return to the Company all Company property, laptop computers, security access cards, and proprietary documentation.
+
+SECTION 4. CONFIDENTIALITY AND PROPRIETARY INFORMATION
+4.1 Non-Disclosure. Employee agrees to hold all Company Confidential Information in strict trust and confidence. Employee shall not, during employment or thereafter, disclose, copy, or distribute any confidential technical or commercial data without prior written authorization.
+4.2 Return of Materials. Upon cessation of employment, Employee shall certify in writing that all confidential documents, client lists, source code repositories, and electronic records have been permanently returned or deleted.
+
+--- Page 3 ---
+SECTION 5. INTELLECTUAL PROPERTY ASSIGNMENT
+5.1 Inventions and Discoveries. All inventions, improvements, software developments, designs, and discoveries made, conceived, or reduced to practice by Employee during employment that relate directly to the Company's business shall be the sole and exclusive property of the Company as a "work made for hire."
+5.2 Assistance. Employee agrees to execute all patent applications, assignments, and instruments necessary to perfect Company's title to such Intellectual Property.
+
+SECTION 6. INDEMNIFICATION AND LIABILITY
+6.1 Indemnification. To the fullest extent permitted by Delaware law, the Company shall defend, indemnify, and hold harmless Employee from and against liabilities and legal expenses incurred in connection with legal proceedings arising out of Employee's good faith performance of executive duties.
+6.2 Limitation of Liability. The Company's aggregate liability under this Agreement shall not exceed the total annual compensation paid to Employee during the preceding twelve (12) months.
+
+SECTION 7. GOVERNING LAW AND DISPUTE RESOLUTION
+7.1 Governing Law. This Agreement shall be construed and governed in accordance with the laws of the State of Delaware, without regard to conflicts of law principles.
+7.2 Arbitration. Any controversy or dispute arising under this Agreement shall be submitted to final and binding arbitration administered by the American Arbitration Association in New Castle County, Delaware.
