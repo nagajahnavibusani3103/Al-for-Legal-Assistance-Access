@@ -2,6 +2,9 @@
 
 > **"Understand the fine print. Know what to ask next."**
 
+🌐 **Live Deployment URL:** [https://patrick-controls-durham-backup.trycloudflare.com](https://patrick-controls-durham-backup.trycloudflare.com)  
+⚡ **Instant Hackathon Access:** Click **"Sign In"** → **"1-Click Hackathon Demo Access"** to immediately test all features.
+
 LexiLens is a production-quality, trustworthy legal document analysis, version comparison, and consultation preparation web application. Built for non-lawyers (tenants, employees, freelancers, founders, and small-business owners), it transforms dense legal legalese into actionable, evidence-linked insights—without ever presenting output as definitive legal advice.
 
 ---
