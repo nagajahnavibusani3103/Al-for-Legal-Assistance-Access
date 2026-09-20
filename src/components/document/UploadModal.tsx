@@ -241,7 +241,11 @@ export function UploadModal({ isOpen, onClose, onSuccess }: UploadModalProps) {
 
           {/* Processing Status */}
           {isUploading && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 text-xs text-blue-900">
+            <div 
+              role="status" 
+              aria-live="polite" 
+              className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3 text-xs text-blue-900"
+            >
               <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
               <span className="font-medium">{statusMessage}</span>
             </div>

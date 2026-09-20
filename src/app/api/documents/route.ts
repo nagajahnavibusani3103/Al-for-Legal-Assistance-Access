@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { getSessionUser } from '@/lib/security/auth';
 import { checkRateLimit } from '@/lib/security/rate-limiter';
 import { validateDocumentFile } from '@/lib/document-processing/validator';
@@ -12,17 +13,20 @@ import {
   insertDocument, 
   savePagesAndChunks, 
   saveAnalysisResult, 
-  saveSectionExplanations,
+  saveSectionExplanations, 
   saveAttentionAreas, 
   saveObligations, 
   saveChecklistItems, 
-  updateDocumentStatus,
+  updateDocumentStatus, 
   logAuditEvent 
 } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const docs = getDocuments(user.id);
     return NextResponse.json({ success: true, documents: docs });
   } catch (err: any) {
@@ -33,6 +37,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required. Please log in.' }, { status: 401 });
+    }
 
     // Rate limiting
     const rateCheck = checkRateLimit(`upload-${user.id}`);
@@ -63,15 +70,16 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const docId = `doc-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const safeTitle = titleOverride?.trim() || file.name.replace(/\.[^/.]+$/, '').replace(/[_.-]/g, ' ');
 
-    // Store file safely
-    const storageDir = path.resolve(process.cwd(), 'storage/documents');
+    // Store file safely in user-isolated storage with randomized filename
+    const storageDir = path.resolve(process.cwd(), 'storage/documents', user.id);
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
-    const safeDiskFileName = `${docId}-${validation.sanitizedFileName}`;
+    const ext = path.extname(validation.sanitizedFileName || file.name).toLowerCase() || `.${validation.detectedType}`;
+    const safeDiskFileName = `${crypto.randomUUID()}${ext}`;
     const storageFilePath = path.join(storageDir, safeDiskFileName);
     fs.writeFileSync(storageFilePath, buffer);
 

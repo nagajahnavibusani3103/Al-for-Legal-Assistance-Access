@@ -19,6 +19,7 @@ import {
 import { generateLocalEmbedding, cosineSimilarity } from '../document-processing/chunker';
 import { detectAbsenceOfInformation, determineIfReviewRequired, verifyCitations } from './hallucination-guard';
 import { inspectAndSanitizeText } from './prompt-shield';
+import { getRetrievalService } from '../retrieval';
 
 export class DeterministicGroundingProvider implements AIProvider {
   name = 'DeterministicGroundingEngine';
@@ -70,56 +71,11 @@ export class DeterministicGroundingProvider implements AIProvider {
   ): Promise<ChatAnswerResponse> {
     const { sanitizedText } = inspectAndSanitizeText(question);
     const query = sanitizedText.trim();
-    const queryLower = query.toLowerCase();
-
-    // Generate query embedding
-    const queryVec = generateLocalEmbedding(query);
-
-    // Score chunks using hybrid retrieval: Cosine Similarity + Lexical Term Match
-    const queryTokens = queryLower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
     
-    interface ScoredChunk {
-      chunk: DocumentChunk;
-      score: number;
-    }
+    // Delegate to centralized, configurable hybrid RAG retrieval service
+    const retrieval = getRetrievalService().retrieve(query, chunks);
 
-    const scoredChunks: ScoredChunk[] = chunks.map(chunk => {
-      const chunkVec = generateLocalEmbedding(chunk.content);
-      const cosScore = cosineSimilarity(queryVec, chunkVec);
-      
-      const chunkLower = chunk.content.toLowerCase();
-      let lexicalHits = 0;
-      for (const token of queryTokens) {
-        if (chunkLower.includes(token)) lexicalHits += 1;
-      }
-      const lexicalScore = queryTokens.length > 0 ? (lexicalHits / queryTokens.length) : 0;
-
-      // Section heading boost
-      let headingBoost = 0;
-      if (chunk.sectionHeading && queryTokens.some(t => chunk.sectionHeading.toLowerCase().includes(t))) {
-        headingBoost = 0.25;
-      }
-
-      const totalScore = (cosScore * 0.4) + (lexicalScore * 0.45) + headingBoost;
-      return { chunk, score: totalScore };
-    });
-
-    scoredChunks.sort((a, b) => b.score - a.score);
-    const topChunks = scoredChunks.filter(sc => sc.score > 0.15).slice(0, 3);
-
-    // Anti-hallucination check: Check core subject keywords and score threshold
-    const stopwords = new Set([
-      'what', 'when', 'where', 'which', 'who', 'how', 'why', 'does', 'this', 'that', 
-      'have', 'there', 'with', 'about', 'document', 'agreement', 'contract', 'lease',
-      'clause', 'section', 'provision', 'policy', 'terms', 'under', 'are', 'is', 'for', 
-      'the', 'and', 'party', 'parties', 'herein', 'set', 'forth', 'any', 'all', 'our', 
-      'your', 'their', 'from', 'into', 'such', 'than', 'them'
-    ]);
-    const coreQueryWords = queryTokens.filter(t => !stopwords.has(t));
-    const primaryContentLower = topChunks[0]?.chunk.content.toLowerCase() || '';
-    const hasCoreMatch = coreQueryWords.length === 0 || coreQueryWords.some(w => primaryContentLower.includes(w));
-
-    if (topChunks.length === 0 || topChunks[0].score < 0.22 || !hasCoreMatch) {
+    if (!retrieval.isFound || retrieval.results.length === 0) {
       return {
         answer: `I could not find information regarding "${query}" in the uploaded document. The document text does not appear to explicitly address this topic.`,
         evidence: [],
@@ -140,32 +96,10 @@ export class DeterministicGroundingProvider implements AIProvider {
     }
 
     // Grounded answer synthesis from top chunks
-    const primaryChunk = topChunks[0].chunk;
-    const evidence: GroundedCitation[] = topChunks.map(tc => {
-      // Find the most relevant sentence in chunk
-      const sentences = tc.chunk.content.split(/(?<=[.?!])\s+/);
-      let bestSentence = sentences[0] || tc.chunk.content;
-      let maxHits = -1;
-      for (const s of sentences) {
-        const sLower = s.toLowerCase();
-        const hits = queryTokens.filter(t => sLower.includes(t)).length;
-        if (hits > maxHits) {
-          maxHits = hits;
-          bestSentence = s;
-        }
-      }
+    const primaryResult = retrieval.results[0];
+    const evidence: GroundedCitation[] = retrieval.citations;
 
-      return {
-        pageNumber: tc.chunk.pageNumber,
-        sectionHeading: tc.chunk.sectionHeading,
-        chunkId: tc.chunk.id,
-        excerpt: bestSentence.trim(),
-        confidence: 'DIRECTLY STATED'
-      };
-    });
-
-    // Synthesize plain language answer
-    const answerLead = `Based on ${primaryChunk.sectionHeading} (Page ${primaryChunk.pageNumber}), the document states:`;
+    const answerLead = `Based on ${primaryResult.chunk.sectionHeading} (Page ${primaryResult.chunk.pageNumber}), the document states:`;
     const excerptQuote = `"${evidence[0].excerpt}"`;
     const plainExplanation = explainLegalExcerpt(evidence[0].excerpt, query);
 

@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token_hash TEXT UNIQUE NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -192,3 +201,5 @@ CREATE INDEX IF NOT EXISTS idx_obligations_doc_id ON obligations(document_id);
 CREATE INDEX IF NOT EXISTS idx_checklist_doc_id ON checklist_items(document_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conv_id ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions(token_hash);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);

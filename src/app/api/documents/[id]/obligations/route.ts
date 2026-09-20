@@ -8,6 +8,9 @@ export async function GET(
 ) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const doc = getDocument(params.id);
 
     if (!doc || !enforceDocumentOwnership(doc.userId, user.id)) {
@@ -27,6 +30,9 @@ export async function PATCH(
 ) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const doc = getDocument(params.id);
 
     if (!doc || !enforceDocumentOwnership(doc.userId, user.id)) {

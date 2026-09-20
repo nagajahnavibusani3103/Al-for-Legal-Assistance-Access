@@ -13,6 +13,9 @@ import { getAIProvider } from '@/lib/ai';
 export async function GET(req: NextRequest) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const list = getComparisons(user.id);
     return NextResponse.json({ success: true, comparisons: list });
   } catch (err: any) {
@@ -23,6 +26,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const body = await req.json();
     const { docAId, docBId } = body;
 
@@ -37,12 +43,8 @@ export async function POST(req: NextRequest) {
     const docA = getDocument(docAId);
     const docB = getDocument(docBId);
 
-    if (!docA || !docB) {
-      return NextResponse.json({ success: false, error: 'One or both documents could not be found.' }, { status: 404 });
-    }
-
-    if (!enforceDocumentOwnership(docA.userId, user.id) || !enforceDocumentOwnership(docB.userId, user.id)) {
-      return NextResponse.json({ success: false, error: 'Access denied: You do not own both documents.' }, { status: 403 });
+    if (!docA || !docB || !enforceDocumentOwnership(docA.userId, user.id) || !enforceDocumentOwnership(docB.userId, user.id)) {
+      return NextResponse.json({ success: false, error: 'One or both documents could not be found or access is denied.' }, { status: 404 });
     }
 
     const docAPages = getDocumentPages(docAId);

@@ -15,15 +15,15 @@ export async function GET(
 ) {
   try {
     const user = await getSessionUser(req);
-    const doc = getDocument(params.id);
-
-    if (!doc) {
-      return NextResponse.json({ success: false, error: 'Document not found.' }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
 
-    // Ownership check
-    if (!enforceDocumentOwnership(doc.userId, user.id)) {
-      return NextResponse.json({ success: false, error: 'Access denied: You do not own this document.' }, { status: 403 });
+    const doc = getDocument(params.id);
+
+    // IDOR Protection: Return 404 if not found OR if not owned by caller
+    if (!doc || !enforceDocumentOwnership(doc.userId, user.id)) {
+      return NextResponse.json({ success: false, error: 'Document not found or access denied.' }, { status: 404 });
     }
 
     const pages = getDocumentPages(params.id);
@@ -49,14 +49,15 @@ export async function DELETE(
 ) {
   try {
     const user = await getSessionUser(req);
-    const doc = getDocument(params.id);
-
-    if (!doc) {
-      return NextResponse.json({ success: false, error: 'Document not found.' }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
 
-    if (!enforceDocumentOwnership(doc.userId, user.id)) {
-      return NextResponse.json({ success: false, error: 'Access denied: You cannot delete another user\'s document.' }, { status: 403 });
+    const doc = getDocument(params.id);
+
+    // IDOR Protection: Return 404 if not found OR if not owned by caller
+    if (!doc || !enforceDocumentOwnership(doc.userId, user.id)) {
+      return NextResponse.json({ success: false, error: 'Document not found or access denied.' }, { status: 404 });
     }
 
     const deleted = deleteDocument(params.id, user.id);

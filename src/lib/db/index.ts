@@ -33,6 +33,7 @@ export function getDb(): any {
   if (!databaseInstance) {
     databaseInstance = new DatabaseSync(DB_PATH);
     databaseInstance.exec('PRAGMA journal_mode = WAL;');
+    databaseInstance.exec('PRAGMA busy_timeout = 5000;');
     databaseInstance.exec('PRAGMA foreign_keys = ON;');
     initSchema(databaseInstance);
   }
@@ -57,12 +58,99 @@ function initSchema(db: any) {
 }
 
 // ----------------------------------------------------
-// User Queries
+// User & Session Queries
 // ----------------------------------------------------
 export function getUser(userId: string): User | null {
   const db = getDb();
   const row = db.prepare('SELECT id, email, name, role, created_at as createdAt FROM users WHERE id = ?').get(userId) as any;
-  return row || null;
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: (row.role as 'user' | 'admin' | 'guest') || 'user',
+    createdAt: row.createdAt
+  };
+}
+
+export function createUser(user: { id: string; email: string; name: string; passwordHash: string; role?: 'user' | 'admin' | 'guest' }): User {
+  const db = getDb();
+  const userRole = user.role || 'user';
+  db.prepare(`
+    INSERT INTO users (id, email, name, role, password_hash, created_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'))
+  `).run(user.id, user.email.toLowerCase().trim(), user.name.trim(), userRole, user.passwordHash);
+
+  return {
+    id: user.id,
+    email: user.email.toLowerCase().trim(),
+    name: user.name.trim(),
+    role: userRole,
+    createdAt: new Date().toISOString()
+  };
+}
+
+export function getUserByEmail(email: string): (User & { passwordHash?: string }) | null {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT id, email, name, role, password_hash as passwordHash, created_at as createdAt 
+    FROM users 
+    WHERE lower(email) = lower(?)
+  `).get(email.trim()) as any;
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: (row.role as 'user' | 'admin' | 'guest') || 'user',
+    passwordHash: row.passwordHash,
+    createdAt: row.createdAt
+  };
+}
+
+export function createSession(sessionId: string, userId: string, tokenHash: string, expiresAt: string) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `).run(sessionId, userId, tokenHash, expiresAt);
+}
+
+export function getSessionByTokenHash(tokenHash: string): { id: string; userId: string; tokenHash: string; expiresAt: string; user: User } | null {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT s.id, s.user_id as userId, s.token_hash as tokenHash, s.expires_at as expiresAt,
+           u.id as u_id, u.email as u_email, u.name as u_name, u.role as u_role, u.created_at as u_created_at
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.token_hash = ?
+  `).get(tokenHash) as any;
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    userId: row.userId,
+    tokenHash: row.tokenHash,
+    expiresAt: row.expiresAt,
+    user: {
+      id: row.u_id,
+      email: row.u_email,
+      name: row.u_name,
+      role: row.u_role,
+      createdAt: row.u_created_at
+    }
+  };
+}
+
+export function deleteSessionByTokenHash(tokenHash: string) {
+  const db = getDb();
+  db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
+}
+
+export function deleteExpiredSessions() {
+  const db = getDb();
+  db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')").run();
 }
 
 // ----------------------------------------------------
@@ -141,8 +229,23 @@ export function updateDocumentStatus(id: string, status: string, error?: string,
 
 export function deleteDocument(id: string, userId: string): boolean {
   const db = getDb();
+  const doc = getDocument(id, userId);
+  if (!doc) return false;
+
   const res = db.prepare('DELETE FROM documents WHERE id = ? AND user_id = ?').run(id, userId);
-  return (res as any).changes > 0;
+  const changes = (res as any).changes > 0;
+
+  if (changes && doc.filePath) {
+    try {
+      if (fs.existsSync(doc.filePath)) {
+        fs.unlinkSync(doc.filePath);
+      }
+    } catch (err) {
+      console.warn(`Failed to physically delete file at ${doc.filePath}:`, err);
+    }
+  }
+
+  return changes;
 }
 
 // ----------------------------------------------------
@@ -402,9 +505,10 @@ export function getObligations(documentId: string): Obligation[] {
   return rows.map(r => ({ ...r, isCompleted: Boolean(r.isCompleted) }));
 }
 
-export function toggleObligation(id: string, isCompleted: boolean) {
+export function toggleObligation(id: string, isCompleted: boolean): boolean {
   const db = getDb();
-  db.prepare('UPDATE obligations SET is_completed = ? WHERE id = ?').run(isCompleted ? 1 : 0, id);
+  const res = db.prepare('UPDATE obligations SET is_completed = ? WHERE id = ?').run(isCompleted ? 1 : 0, id);
+  return Boolean((res as any)?.changes > 0);
 }
 
 // ----------------------------------------------------
@@ -432,9 +536,10 @@ export function getChecklistItems(documentId: string): ActionChecklistItem[] {
   return rows.map(r => ({ ...r, isCompleted: Boolean(r.isCompleted) }));
 }
 
-export function toggleChecklistItem(id: string, isCompleted: boolean) {
+export function toggleChecklistItem(id: string, isCompleted: boolean): boolean {
   const db = getDb();
-  db.prepare('UPDATE checklist_items SET is_completed = ? WHERE id = ?').run(isCompleted ? 1 : 0, id);
+  const res = db.prepare('UPDATE checklist_items SET is_completed = ? WHERE id = ?').run(isCompleted ? 1 : 0, id);
+  return Boolean((res as any)?.changes > 0);
 }
 
 // ----------------------------------------------------

@@ -6,10 +6,14 @@
 const INJECTION_PATTERNS = [
   /(?:ignore|disregard|forget|override|bypass)\s+(?:all\s+)?(?:previous|prior|system|developer)?\s*(?:instructions|directives|rules|prompts|guidelines|filters)/i,
   /(?:system\s+prompt|developer\s+prompt|meta\s+prompt)/i,
-  /(?:reveal|show|display|leak|print|output)\s+(?:the\s+)?(?:system|developer|hidden|secret)\s+(?:prompt|instructions|rules)/i,
+  /(?:reveal|show|display|leak|print|output)\s+(?:the\s+)?(?:system|developer|hidden|secret)\s+(?:prompt|instructions|rules|keys|passwords)/i,
   /(?:bypass|disable)\s+(?:safety|content|policy)\s*(?:filters|guardrails)?/i,
-  /(?:act\s+as|simulate)\s+(?:an?\s+)?(?:unrestricted|jailbreak|dan\s+mode|root)/i,
-  /\b(?:dan\s+mode|jailbreak)\b/i
+  /(?:act\s+as|simulate|pretend\s+you\s+are)\s+(?:an?\s+)?(?:unrestricted|jailbreak|dan\s+mode|root|administrator|hacker|evil)/i,
+  /\b(?:dan\s+mode|jailbreak|dev\s+mode)\b/i,
+  /<\/?(?:system_instructions|untrusted_document_evidence|admin_override|ai_command)[^>]*>/i,
+  /(?:exfiltrate|fetch|curl|wget|ping)\s+https?:\/\//i,
+  /\[SYSTEM\s*(?:OVERRIDE|INSTRUCTION|DIRECTIVE)\]/i,
+  /(?:Human|User|Assistant|System):\s*(?:Ignore|You are now|Forget all)/i
 ];
 
 export interface ShieldInspectionResult {
@@ -28,7 +32,7 @@ export function inspectAndSanitizeText(text: string): ShieldInspectionResult {
   }
 
   // Strip non-printable null bytes and dangerous control chars
-  let sanitized = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  const sanitized = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
 
   return {
     hasInjectionAttempt: flaggedPatterns.length > 0,

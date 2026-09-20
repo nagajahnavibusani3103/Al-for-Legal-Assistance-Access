@@ -17,14 +17,14 @@ export async function POST(
 ) {
   try {
     const user = await getSessionUser(req);
-    const doc = getDocument(params.id);
-
-    if (!doc) {
-      return NextResponse.json({ success: false, error: 'Document not found.' }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
 
-    if (!enforceDocumentOwnership(doc.userId, user.id)) {
-      return NextResponse.json({ success: false, error: 'Access denied.' }, { status: 403 });
+    const doc = getDocument(params.id);
+
+    if (!doc || !enforceDocumentOwnership(doc.userId, user.id)) {
+      return NextResponse.json({ success: false, error: 'Document not found or access denied.' }, { status: 404 });
     }
 
     const rateCheck = checkRateLimit(`chat-${user.id}`);
@@ -92,6 +92,10 @@ export async function GET(
 ) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
     const doc = getDocument(params.id);
 
     if (!doc || !enforceDocumentOwnership(doc.userId, user.id)) {

@@ -8,28 +8,29 @@ import {
   Key, 
   Cpu, 
   Database, 
-  Trash2, 
   CheckCircle2, 
   AlertCircle, 
   Loader2,
   RefreshCw,
-  Info
+  Info,
+  ShieldCheck,
+  Server
 } from 'lucide-react';
+import { AIProviderConfig } from '@/lib/config/ai';
 
 export default function SettingsPage() {
-  const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState('gemini-2.0-flash');
+  const [config, setConfig] = useState<AIProviderConfig | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [docCount, setDocCount] = useState<number>(0);
   const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
-    // Load local settings
-    const storedKey = localStorage.getItem('lexilens_gemini_key') || '';
-    const storedModel = localStorage.getItem('lexilens_gemini_model') || 'gemini-2.0-flash';
-    setApiKey(storedKey);
-    setModel(storedModel);
+    // Fetch secure server-side AI configuration
+    fetch('/api/settings/ai-config')
+      .then(r => r.json())
+      .then(d => d.success && setConfig(d.config))
+      .catch(() => {});
 
     // Fetch document stats
     fetch('/api/documents')
@@ -38,31 +39,20 @@ export default function SettingsPage() {
       .catch(() => {});
   }, []);
 
-  const handleSaveApiKey = () => {
-    localStorage.setItem('lexilens_gemini_key', apiKey.trim());
-    localStorage.setItem('lexilens_gemini_model', model);
-    setStatusMessage('Settings saved locally. Future analyses will use this configuration.');
-    setTimeout(() => setStatusMessage(null), 3500);
-  };
-
   const handleTestConnection = async () => {
-    if (!apiKey.trim()) {
-      setStatusMessage('Please enter an API key to test.');
-      return;
-    }
     setIsTesting(true);
     setStatusMessage(null);
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${apiKey.trim()}`);
-      if (res.ok) {
-        setStatusMessage('Connection successful! Google Gemini is active and ready.');
+      const res = await fetch('/api/settings/ai-test', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setStatusMessage(`Connection verified! ${data.message} (${data.latencyMs}ms latency)`);
       } else {
-        const err = await res.json();
-        setStatusMessage(`Connection failed: ${err.error?.message || 'Invalid API key'}`);
+        setStatusMessage(`Status check: ${data.message}`);
       }
     } catch (e: any) {
-      setStatusMessage(`Network error: ${e.message}`);
+      setStatusMessage(`Network error during check: ${e.message}`);
     } finally {
       setIsTesting(false);
     }
@@ -79,7 +69,7 @@ export default function SettingsPage() {
       const d = await r.json();
       if (d.success) setDocCount(d.documents.length);
       setStatusMessage('Demo contracts successfully re-seeded!');
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTimeout(() => setStatusMessage(null), 3500);
     } catch (err) {
       console.error(err);
     } finally {
@@ -95,13 +85,13 @@ export default function SettingsPage() {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200 text-slate-800 text-xs font-semibold mb-3">
             <SettingsIcon className="w-3.5 h-3.5 text-slate-700" />
-            <span>Configuration & Engines</span>
+            <span>Configuration & Telemetry</span>
           </div>
           <h1 className="text-3xl font-extrabold text-slate-950 tracking-tight">
             Application Settings
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Configure AI provider credentials, review local SQL database metrics, or reload synthetic test contracts.
+            Review server-side AI provider configuration, database telemetry, and security status.
           </p>
         </div>
 
@@ -118,66 +108,72 @@ export default function SettingsPage() {
         <div className="space-y-6">
           {/* AI Provider Section */}
           <section className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-              <Cpu className="w-5 h-5 text-blue-600" />
-              <h2>AI Engine & Gemini API Configuration</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                <Cpu className="w-5 h-5 text-blue-600" />
+                <h2>AI Orchestration & Provider Status</h2>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
+                config?.connectionStatus === 'connected' 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {config?.connectionStatus === 'connected' ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Live Gemini Cloud Active</span>
+                  </>
+                ) : (
+                  <>
+                    <Server className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Offline Deterministic Engine Active</span>
+                  </>
+                )}
+              </span>
             </div>
             
             <p className="text-xs text-slate-600 leading-relaxed">
-              LexiLens includes an integrated, zero-dependency legal reasoning engine with cosine similarity RAG. 
-              To enable live multimodal Google Gemini 1.5/2.0 models, enter your Gemini API key below.
+              LexiLens maintains strict credential separation: API keys are securely managed via server environment 
+              variables (<code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">.env.local</code>) and are never exposed to 
+              browser JavaScript or stored in <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">localStorage</code>.
             </p>
 
-            <div className="space-y-3 pt-2">
-              <div>
-                <label htmlFor="gemini-key" className="block text-xs font-semibold text-slate-700 mb-1">
-                  Google Gemini API Key
-                </label>
-                <div className="relative">
-                  <Key className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    id="gemini-key"
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full pl-9 pr-3 py-2 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <span className="text-slate-500 font-medium block">Active Provider</span>
+                <span className="text-slate-900 font-bold text-sm block capitalize">
+                  {config?.provider === 'gemini' ? 'Google Gemini AI' : 'Local Deterministic Reasoning Engine'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {config?.isConfigured ? 'Connected via GEMINI_API_KEY' : 'Zero-dependency offline TF-IDF cosine RAG'}
+                </span>
               </div>
 
-              <div>
-                <label htmlFor="gemini-model" className="block text-xs font-semibold text-slate-700 mb-1">
-                  Preferred Model
-                </label>
-                <select
-                  id="gemini-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                >
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fastest, High Quality)</option>
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Reasoning)</option>
-                </select>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <span className="text-slate-500 font-medium block">Active Model</span>
+                <span className="text-slate-900 font-bold text-sm block">
+                  {config?.model || 'Loading...'}
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Max tokens: {config?.maxContextTokens || 2048} | Top-K: {config?.topK || 3}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Zero client-side secrets exposure (Security Phase 5 compliant)</span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <button
-                  onClick={handleSaveApiKey}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                >
-                  Save Settings
-                </button>
-                <button
-                  onClick={handleTestConnection}
-                  disabled={isTesting || !apiKey}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                  <span>Test Connection</span>
-                </button>
-              </div>
+              <button
+                onClick={handleTestConnection}
+                disabled={isTesting}
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+              >
+                {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                <span>Verify Provider Health</span>
+              </button>
             </div>
           </section>
 
@@ -185,25 +181,28 @@ export default function SettingsPage() {
           <section className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm space-y-4">
             <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
               <Database className="w-5 h-5 text-emerald-600" />
-              <h2>SQL Database & Storage Status</h2>
+              <h2>SQL Database & Persistent Storage</h2>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-500 block">Database Driver:</span>
                 <span className="text-slate-900 font-bold text-sm">node:sqlite (Embedded SQL)</span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">WAL Mode & Foreign Keys enabled</span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-500 block">Stored Documents:</span>
                 <span className="text-slate-900 font-bold text-sm">{docCount} Documents</span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">User-isolated filesystem paths</span>
               </div>
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <span className="text-slate-500 block">Vector Index:</span>
-                <span className="text-slate-900 font-bold text-sm">Cosine TF-IDF Space</span>
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 block">Vector Space:</span>
+                <span className="text-slate-900 font-bold text-sm">64-Dim Cosine Space</span>
+                <span className="text-[11px] text-slate-500 block mt-0.5">Hybrid TF-IDF & Lexical Index</span>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <span className="text-xs font-semibold text-slate-800 block">Reload Synthetic Test Fixtures</span>
                 <span className="text-[11px] text-slate-500">

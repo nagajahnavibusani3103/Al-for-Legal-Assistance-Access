@@ -52,6 +52,7 @@ export interface DocumentChunk {
   chunkIndex: number;
   content: string;
   tokenCount: number;
+  vector?: number[];
 }
 
 export interface EmbeddingRecord {

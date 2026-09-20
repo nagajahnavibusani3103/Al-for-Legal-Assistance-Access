@@ -60,6 +60,7 @@ function CompareContent() {
     if (docAId && docBId && docAId !== docBId && !comparisonReport) {
       handleRunComparison();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docAId, docBId]);
 
   const handleRunComparison = async () => {

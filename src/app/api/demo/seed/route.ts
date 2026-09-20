@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { getSessionUser } from '@/lib/security/auth';
+import { 
+  getSessionUser, 
+  createAuthenticatedSession, 
+  SESSION_COOKIE_NAME, 
+  getSessionCookieOptions 
+} from '@/lib/security/auth';
 import { 
   insertDocument, 
   savePagesAndChunks, 
@@ -15,7 +20,8 @@ import {
   updateDocumentStatus,
   getDocumentPages,
   getDocumentChunks,
-  getDocument
+  getDocument,
+  getUser
 } from '@/lib/db';
 import { extractDocumentContent } from '@/lib/document-processing/extractor';
 import { chunkDocumentPages } from '@/lib/document-processing/chunker';
@@ -23,7 +29,17 @@ import { getAIProvider } from '@/lib/ai';
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getSessionUser(req);
+    let user = await getSessionUser(req);
+    let newSessionToken: string | null = null;
+    if (!user) {
+      user = getUser('demo-user');
+      if (user) {
+        const sess = createAuthenticatedSession(user.id);
+        newSessionToken = sess.sessionToken;
+      } else {
+        return NextResponse.json({ success: false, error: 'Demo user not available.' }, { status: 500 });
+      }
+    }
     const fixturesDir = path.resolve(process.cwd(), 'fixtures');
 
     const seedFiles = [
@@ -136,7 +152,16 @@ export async function POST(req: NextRequest) {
 
     logAuditEvent(user.id, 'SEED_DEMO_DATA', undefined, 'Seeded 4 realistic demo contracts');
 
-    return NextResponse.json({ success: true, message: 'Synthetic demo legal contracts loaded successfully.' });
+    const res = NextResponse.json({ success: true, message: 'Synthetic demo legal contracts loaded successfully.' });
+    if (newSessionToken) {
+      const cookieOpts = getSessionCookieOptions();
+      res.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: newSessionToken,
+        ...cookieOpts
+      });
+    }
+    return res;
   } catch (err: any) {
     console.error('Demo seed error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

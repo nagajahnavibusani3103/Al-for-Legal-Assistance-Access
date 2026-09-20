@@ -11,6 +11,9 @@ import {
 export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const body = await req.json();
     const { documentId, format = 'txt' } = body;
 

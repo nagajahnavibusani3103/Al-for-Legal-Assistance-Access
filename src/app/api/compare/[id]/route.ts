@@ -8,6 +8,9 @@ export async function GET(
 ) {
   try {
     const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const report = getComparison(params.id, user.id);
 
     if (!report) {
